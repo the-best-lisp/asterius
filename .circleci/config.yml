@@ -1,0 +1,17 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: docker:stable-git
+    environment:
+      - GHC_VER: "8.5.20180326"
+      - NIXPKGS_REV: ff861c076f71fea22430a6154fef9c380cab3deb
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+          cd .circleci
+          docker login -u terrorjack -p $DOCKER_PASS
+          docker build -t terrorjack/ghc-asterius:latest -t terrorjack/ghc-asterius:$GHC_VER --build-arg NIXPKGS_REV=$NIXPKGS_REV .
+          docker push terrorjack/ghc-asterius:latest
+          docker push terrorjack/ghc-asterius:$GHC_VER
