@@ -5,7 +5,7 @@ jobs:
       - image: docker:stable-git
     environment:
       - GHC_VER: "8.5.20180413"
-      - NIXPKGS_REV: 6e2cda4fb513b02c285bebeafb0013bedd3b563e
+      - NIXPKGS_REV: fadcbfc2f593301c7dc22447ba1d7eed3549b1ac
     steps:
       - checkout
       - setup_remote_docker
