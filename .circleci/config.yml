@@ -6,13 +6,13 @@ jobs:
     docker:
       - image: ubuntu:bionic
     environment:
+      DEBIAN_FRONTEND: noninteractive
       GHC_REV: a303584e58b3f4791bc5881cb722e7f498e14554
       JOBS: 9
     steps:
       - run:
           name: Install dependencies
           command: |
-            export DEBIAN_FRONTEND=noninteractive
             apt update
             apt install -y software-properties-common
             add-apt-repository -y ppa:hvr/ghc
@@ -22,6 +22,7 @@ jobs:
               alex-3.1.7 \
               autoconf \
               automake \
+              cabal-install-2.2 \
               g++ \
               ghc-8.4.2 \
               git \
@@ -33,6 +34,7 @@ jobs:
               make \
               pkg-config \
               python3-sphinx \
+              xz-utils \
               zlib1g-dev
       - run:
           name: Initialize ghc repo
@@ -46,10 +48,13 @@ jobs:
       - run:
           name: Compile GHC
           command: |
+            export PATH=$PATH:~/.cabal/bin:/opt/ghc/8.4.2/bin:/opt/cabal/2.2/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:/usr/share/sphinx/scripts/python3
+            cabal update
+            cabal install hscolour
             mv .circleci/build.mk /tmp/ghc/mk/
             cd /tmp/ghc
             ./boot
-            ALEX=/opt/alex/3.1.7/bin/alex GHC=/opt/ghc/8.4.2/bin/ghc HAPPY=/opt/happy/1.19.5/bin/happy SPHINXBUILD=/usr/share/sphinx/scripts/python3/sphinx-build ./configure
+            ./configure
             make -j$JOBS
             make binary-dist
             mkdir /tmp/ghc-bindist
