@@ -1,0 +1,57 @@
+version: 2
+
+jobs:
+  build:
+    resource_class: xlarge
+    docker:
+      - image: ubuntu:bionic
+    environment:
+      GHC_REV: a303584e58b3f4791bc5881cb722e7f498e14554
+      JOBS: 9
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            apt update
+            apt install -y software-properties-common
+            add-apt-repository -y ppa:hvr/ghc
+            apt update
+            apt dist-upgrade -y
+            apt install -y \
+              alex-3.1.7 \
+              autoconf \
+              automake \
+              g++ \
+              ghc-8.4.2 \
+              git \
+              happy-1.19.5 \
+              libedit-dev \
+              libffi-dev \
+              libgmp-dev \
+              libtool-bin \
+              make \
+              pkg-config \
+              python3-sphinx \
+              zlib1g-dev
+      - run:
+          name: Initialize ghc repo
+          command: |
+            cd /tmp
+            git clone git://git.haskell.org/ghc.git
+            cd ghc
+            git checkout $GHC_REV
+            git submodule update --init --recursive
+      - checkout
+      - run:
+          name: Compile GHC
+          command: |
+            mv .circleci/build.mk /tmp/ghc/mk/
+            cd /tmp/ghc
+            ./boot
+            ALEX=/opt/alex/3.1.7/bin/alex GHC=/opt/ghc/8.4.2/bin/ghc HAPPY=/opt/happy/1.19.5/bin/happy SPHINXBUILD=/usr/share/sphinx/scripts/python3/sphinx-build ./configure
+            make -j$JOBS
+            make binary-dist
+            mkdir /tmp/ghc-bindist
+            mv *.tar.* /tmp/ghc-bindist/
+      - store_artifacts:
+          path: /tmp/ghc-bindist
