@@ -34,12 +34,12 @@ import Text.Show.Pretty
 data Task = Task
   { input, outputWasm, outputNode :: FilePath
   , outputLinkReport, outputGraphViz :: Maybe FilePath
-  , debug, outputIR, run :: Bool
+  , debug, dumpStg, dumpCmm, dumpIR, run :: Bool
   }
 
 parseTask :: Parser Task
 parseTask =
-  (\(i, m_wasm, m_node, m_report, m_gv, dbg, ir, r) ->
+  (\(i, m_wasm, m_node, m_report, m_gv, dbg, stg, cmm, ir, r) ->
      Task
        { input = i
        , outputWasm = fromMaybe (i -<.> "wasm") m_wasm
@@ -47,10 +47,12 @@ parseTask =
        , outputLinkReport = m_report
        , outputGraphViz = m_gv
        , debug = dbg
-       , outputIR = ir
+       , dumpStg = stg
+       , dumpCmm = cmm
+       , dumpIR = ir
        , run = r
        }) <$>
-  ((,,,,,,,) <$> strOption (long "input" <> help "Path of the Main module") <*>
+  ((,,,,,,,,,) <$> strOption (long "input" <> help "Path of the Main module") <*>
    optional
      (strOption
         (long "output-wasm" <>
@@ -67,7 +69,9 @@ parseTask =
         (long "output-graphviz" <>
          help "Output path of GraphViz file of symbol dependencies")) <*>
    switch (long "debug" <> help "Enable debug mode in the runtime") <*>
-   switch (long "output-ir" <> help "Output Asterius IR of compiled modules") <*>
+   switch (long "dump-stg" <> help "Enable dumping STG") <*>
+   switch (long "dump-cmm" <> help "Enable dumping Cmm") <*>
+   switch (long "dump-ir" <> help "Enable dumping Asterius IR") <*>
    switch (long "run" <> help "Run the compiled module with Node.js"))
 
 opts :: ParserInfo Task
@@ -103,7 +107,15 @@ main = do
   let builtins_opts = def_builtins_opts {tracing = debug}
       !orig_store = builtinsStore builtins_opts <> boot_store
   putStrLn $ "Compiling " <> input <> " to Cmm"
-  mod_ir_map <- runHaskell defaultConfig [input]
+  mod_ir_map <-
+    runHaskell
+      defaultConfig
+        { ghcFlags =
+            ["-ddump-to-file" | dumpStg || dumpCmm] <> ["-ddump-stg" | dumpStg] <>
+            ["-ddump-cmm-raw" | dumpCmm] <>
+            ghcFlags defaultConfig
+        }
+      [input]
   putStrLn "Marshalling from Cmm to WebAssembly"
   final_store_ref <- newIORef orig_store
   M.foldlWithKey'
@@ -116,7 +128,7 @@ main = do
              "Marshalling " <> show mod_str <> " from Cmm to WebAssembly"
            modifyIORef' final_store_ref $
              addModule (marshalToModuleSymbol ms_mod) m
-           when outputIR $ do
+           when dumpIR $ do
              let p = takeDirectory input </> mod_str <.> "txt"
              putStrLn $
                "Writing pretty-printed IR of " <> mod_str <> " to " <> p

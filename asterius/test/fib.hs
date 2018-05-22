@@ -9,6 +9,8 @@ main =
     , "--output-link-report"
     , "test/fib/fib.link.txt"
     , "--debug"
-    , "--output-ir"
+    , "--dump-stg"
+    , "--dump-cmm"
+    , "--dump-ir"
     , "--run"
     ]
